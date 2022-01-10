@@ -12,10 +12,13 @@ class Subnet:
 
         self.cidr = cidr
         self.network_address = network_address
-        self.subnet_mask = helpers.cidr_to_subnet_mask(cidr)
-
         self.address_count = 2 ** (32 - cidr)
         self.host_address_count = self.address_count - 2
+        self.subnet_mask = helpers.cidr_to_subnet_mask(cidr)
+        self.broadcast_address = network_address + (self.address_count - 1)
+
+    def __str__(self) -> str:
+        return f"Network Address: {self.network_address}, Broadcast Address: {self.broadcast_address}, # of Addresses: {self.address_count}, # of Hosts: {self.host_address_count})"
 
     def verify(self, network_address: IPv4, cidr: int):
         if network_address is None:
@@ -27,7 +30,7 @@ class Subnet:
                 + str(cidr)
             )
 
-        if network_address.is_network_address(cidr):
+        if not network_address.is_network_address(cidr):
             raise ValueError(
                 "The given address can't be a network address for this subnet."
             )
