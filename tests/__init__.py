@@ -1,1 +1,1 @@
-import tests.ipv4
+from tests import *

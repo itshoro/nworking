@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import List, Tuple, Union, TYPE_CHECKING, overload
-import helpers
+from typing import List, Tuple, Union, overload
+import nworking.helpers
 
 
 class IPv4:
@@ -19,6 +19,8 @@ class IPv4:
         elif isinstance(octets[0], str):
             octets_list = [int(octet) for octet in octets[0].split(".")]
         elif isinstance(octets[0], int):
+            if octets[0] > 2 ** 32 - 1:
+                raise AddressOutOfRangeError(octets)
             octets_list = []
 
             remaining_number = octets[0]
@@ -35,27 +37,25 @@ class IPv4:
         self.verify(octets_list)
         self.octets = octets_list
 
-    """
-    Returns true if the ip address is a network adress for a network given its CIDR notation
-    """
-
     @overload
     def is_network_address(self, cidr: int) -> bool:
+        """
+        Returns true if the ip address is a network adress for a network given its CIDR notation
+        """
         pass
-
-    """
-    Returns true if the ip address is a network adress for a network given its subnet mask
-    """
 
     @overload
     def is_network_address(self, subnet_mask: IPv4) -> bool:
+        """
+        Returns true if the ip address is a network adress for a network given its subnet mask
+        """
         pass
 
     def is_network_address(self, subnet_argument) -> bool:
         subnet_mask = (
             subnet_argument
             if isinstance(subnet_argument, IPv4)
-            else helpers.cidr_to_subnet_mask(subnet_argument)
+            else nworking.helpers.cidr_to_subnet_mask(subnet_argument)
         )
         bit_string = subnet_mask.bit_repr()
 
@@ -66,23 +66,25 @@ class IPv4:
         # is the same as the number of 0 bits in the subnet mask
         return self.bit_repr()[number_of_ones:].count("0") == number_of_zeroes
 
-    """
-    Returns the network address for an ip address, given a CIDR notation
-    """
-
     @overload
     def network_address(self, cidr: int) -> IPv4:
+        """
+        Returns the network address for an ip address, given a CIDR notation
+        """
         pass
 
     @overload
     def network_address(self, subnet_mask: IPv4) -> IPv4:
+        """
+        Returns the network address for an ip address, given a subnet mask
+        """
         pass
 
     def network_address(self, subnet_argument) -> IPv4:
         subnet_mask = (
             subnet_argument
             if isinstance(subnet_argument, IPv4)
-            else helpers.cidr_to_subnet_mask(subnet_argument)
+            else nworking.helpers.cidr_to_subnet_mask(subnet_argument)
         )
 
         bit_string = subnet_mask.bit_repr()
@@ -95,10 +97,14 @@ class IPv4:
         )
 
         octets = [
-            int(octet, 2) for octet in list(helpers.chunk(network_address_binary, 8))
+            int(octet, 2)
+            for octet in list(nworking.helpers.chunk(network_address_binary, 8))
         ]
 
         return IPv4(octets)
+
+    def __repr__(self) -> str:
+        return f"core.ipv4.IPv4({repr(self.octets)})"
 
     def bit_repr(self) -> str:
         ip_address_number = 0
@@ -134,6 +140,7 @@ class IPv4:
             raise TypeError(f'Type "{str(type(other))}" cannot be added to IPv4')
 
         try:
+
             return IPv4(int(self) + number_repr)
         except ValueError as e:
             raise AddressOutOfRangeError(e.args[1]) from e
@@ -175,11 +182,7 @@ class IPv4:
 
         for octet in octets:
             if octet < 0 or octet > 255:
-                raise ValueError(
-                    "Each octet has to be a value between 0 and 255, received "
-                    + str(octet),
-                    octets,
-                )
+                raise AddressOutOfRangeError(octets)
 
 
 class AddressOutOfRangeError(BaseException):
@@ -196,3 +199,36 @@ class AddressOutOfRangeError(BaseException):
             "Addresses can only range from 0.0.0.0 to 255.255.255.255, received "
             + address_repr
         )
+
+
+class Subnet:
+    def __init__(self, network_address: IPv4, cidr: int) -> None:
+        if network_address is None:
+            network_address = IPv4(0, 0, 0, 0)
+        self.verify(network_address, cidr)
+
+        self.cidr = cidr
+        self.network_address = network_address
+        self.address_count = 2 ** (32 - cidr)
+        self.host_address_count = self.address_count - 2
+        self.subnet_mask = nworking.helpers.cidr_to_subnet_mask(cidr)
+        self.broadcast_address = network_address + (self.address_count - 1)
+
+    def __repr__(self) -> str:
+        return f"core.ipv4.subnet({repr(self.network_address)}, {repr(self.cidr)})"
+
+    def __str__(self) -> str:
+        return f"Network Address: {self.network_address}, Broadcast Address: {self.broadcast_address}, # of Addresses: {self.address_count}, # of Hosts: {self.host_address_count})"
+
+    def verify(self, network_address: IPv4, cidr: int):
+
+        if cidr > 32 or cidr < 0:
+            raise ValueError(
+                "The CIDR notation only uses values between 0 and 32, received "
+                + str(cidr)
+            )
+
+        if not network_address.is_network_address(cidr):
+            raise ValueError(
+                "The given address can't be a network address for this subnet."
+            )

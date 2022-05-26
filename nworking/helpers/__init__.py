@@ -1,4 +1,4 @@
-import core.ipv4.ip_address
+import nworking
 
 
 def cidr_to_subnet_mask(cidr: int):
@@ -20,7 +20,7 @@ def cidr_to_subnet_mask(cidr: int):
         int.from_bytes([byte], "big", signed=False) for byte in network_bytes
     ]
 
-    return core.ipv4.ip_address.IPv4(network_octets)
+    return nworking.IPv4(network_octets)
 
 
 def chunk(array: list, chunk_size: int):

@@ -1,6 +1,6 @@
 import unittest
-from core import IPv4
-from core import Subnet
+from nworking import IPv4
+from nworking import Subnet
 
 
 class TestSubnet(unittest.TestCase):
